@@ -1,0 +1,978 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DataLens — لوحة تحليل البيانات</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --navy: #0F4C75;
+    --navy-light: #1B6CA8;
+    --accent: #00C9A7;
+    --accent2: #F7B731;
+    --bg: #F5F7FA;
+    --card: #FFFFFF;
+    --text: #1A202C;
+    --muted: #718096;
+    --border: #E2E8F0;
+    --danger: #E53E3E;
+    --success: #38A169;
+    --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 4px 16px rgba(15,76,117,0.06);
+    --shadow-lg: 0 8px 32px rgba(15,76,117,0.12);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Tajawal', 'Inter', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    direction: rtl;
+  }
+
+  /* ── NAVBAR ── */
+  nav {
+    background: var(--navy);
+    padding: 0 32px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 12px rgba(15,76,117,0.3);
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: #fff;
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+  }
+
+  .logo-icon {
+    width: 32px; height: 32px;
+    background: var(--accent);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+  }
+
+  .nav-lang {
+    display: flex;
+    gap: 6px;
+  }
+
+  .lang-btn {
+    background: rgba(255,255,255,0.12);
+    border: 1px solid rgba(255,255,255,0.2);
+    color: #fff;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: inherit;
+  }
+
+  .lang-btn.active, .lang-btn:hover {
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+
+  /* ── UPLOAD SECTION ── */
+  #uploadSection {
+    max-width: 680px;
+    margin: 80px auto;
+    padding: 0 24px;
+    text-align: center;
+  }
+
+  .upload-hero h1 {
+    font-size: 36px;
+    font-weight: 700;
+    color: var(--navy);
+    line-height: 1.3;
+    margin-bottom: 12px;
+  }
+
+  .upload-hero p {
+    color: var(--muted);
+    font-size: 16px;
+    margin-bottom: 40px;
+  }
+
+  .upload-zone {
+    border: 2.5px dashed #BEE3F8;
+    border-radius: 20px;
+    padding: 60px 40px;
+    background: #EBF8FF;
+    cursor: pointer;
+    transition: all 0.25s;
+    position: relative;
+  }
+
+  .upload-zone:hover, .upload-zone.drag-over {
+    border-color: var(--navy-light);
+    background: #DBEAFE;
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+  }
+
+  .upload-icon {
+    font-size: 56px;
+    margin-bottom: 16px;
+    display: block;
+  }
+
+  .upload-zone h3 {
+    font-size: 20px;
+    color: var(--navy);
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+
+  .upload-zone p {
+    color: var(--muted);
+    font-size: 14px;
+    margin-bottom: 0;
+  }
+
+  .upload-zone input {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+  }
+
+  .supported-formats {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin-top: 24px;
+    flex-wrap: wrap;
+  }
+
+  .format-badge {
+    background: #fff;
+    border: 1px solid var(--border);
+    padding: 4px 14px;
+    border-radius: 20px;
+    font-size: 13px;
+    color: var(--navy);
+    font-weight: 500;
+  }
+
+  /* ── LOADING ── */
+  #loadingSection {
+    display: none;
+    text-align: center;
+    padding: 80px 24px;
+  }
+
+  .spinner {
+    width: 56px; height: 56px;
+    border: 4px solid var(--border);
+    border-top-color: var(--navy);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 24px;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .loading-text {
+    font-size: 18px;
+    color: var(--navy);
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+
+  .loading-sub {
+    color: var(--muted);
+    font-size: 14px;
+  }
+
+  /* ── DASHBOARD ── */
+  #dashboardSection {
+    display: none;
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 32px 24px;
+  }
+
+  .dash-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 28px;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .dash-title h2 {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--navy);
+  }
+
+  .dash-title p {
+    color: var(--muted);
+    font-size: 14px;
+    margin-top: 2px;
+  }
+
+  .btn-new {
+    background: var(--navy);
+    color: #fff;
+    border: none;
+    padding: 10px 22px;
+    border-radius: 10px;
+    font-size: 14px;
+    cursor: pointer;
+    font-family: inherit;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.2s;
+  }
+
+  .btn-new:hover { background: var(--navy-light); transform: translateY(-1px); }
+
+  /* ── KPI CARDS ── */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  .kpi-card {
+    background: var(--card);
+    border-radius: 14px;
+    padding: 20px 22px;
+    box-shadow: var(--shadow);
+    border-right: 4px solid transparent;
+    transition: all 0.2s;
+  }
+
+  .kpi-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
+  .kpi-card:nth-child(1) { border-color: var(--navy); }
+  .kpi-card:nth-child(2) { border-color: var(--accent); }
+  .kpi-card:nth-child(3) { border-color: var(--accent2); }
+  .kpi-card:nth-child(4) { border-color: #9B59B6; }
+
+  .kpi-label {
+    font-size: 12px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-bottom: 8px;
+    font-weight: 600;
+  }
+
+  .kpi-value {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--navy);
+    line-height: 1;
+    margin-bottom: 4px;
+    font-family: 'Inter', sans-serif;
+  }
+
+  .kpi-sub {
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  /* ── CHARTS GRID ── */
+  .charts-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 24px;
+  }
+
+  @media (max-width: 768px) {
+    .charts-grid { grid-template-columns: 1fr; }
+  }
+
+  .chart-card {
+    background: var(--card);
+    border-radius: 14px;
+    padding: 22px;
+    box-shadow: var(--shadow);
+  }
+
+  .chart-card.wide { grid-column: 1 / -1; }
+
+  .card-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--navy);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .card-title span { font-size: 18px; }
+
+  .chart-container { position: relative; height: 240px; }
+
+  /* ── AI INSIGHTS ── */
+  .insights-card {
+    background: linear-gradient(135deg, var(--navy) 0%, #1B6CA8 100%);
+    border-radius: 16px;
+    padding: 28px 32px;
+    color: #fff;
+    margin-bottom: 24px;
+    box-shadow: var(--shadow-lg);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .insights-card::before {
+    content: '';
+    position: absolute;
+    top: -40px; left: -40px;
+    width: 200px; height: 200px;
+    background: rgba(255,255,255,0.04);
+    border-radius: 50%;
+  }
+
+  .insights-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  .ai-badge {
+    background: var(--accent);
+    color: #000;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .insights-header h3 {
+    font-size: 18px;
+    font-weight: 700;
+  }
+
+  .insights-body {
+    font-size: 15px;
+    line-height: 1.8;
+    opacity: 0.95;
+  }
+
+  .insights-body p { margin-bottom: 10px; }
+
+  .insight-item {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+    align-items: flex-start;
+  }
+
+  .insight-dot {
+    width: 8px; height: 8px;
+    background: var(--accent);
+    border-radius: 50%;
+    margin-top: 7px;
+    flex-shrink: 0;
+  }
+
+  .recommendations {
+    background: rgba(255,255,255,0.1);
+    border-radius: 10px;
+    padding: 16px 20px;
+    margin-top: 16px;
+  }
+
+  .rec-title {
+    font-size: 13px;
+    font-weight: 700;
+    opacity: 0.7;
+    margin-bottom: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+  }
+
+  .rec-item {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 8px;
+    font-size: 14px;
+    align-items: flex-start;
+  }
+
+  .rec-num {
+    background: var(--accent2);
+    color: #000;
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  /* ── TABLE ── */
+  .table-card {
+    background: var(--card);
+    border-radius: 14px;
+    padding: 22px;
+    box-shadow: var(--shadow);
+    margin-bottom: 24px;
+    overflow: auto;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    direction: ltr;
+  }
+
+  th {
+    background: #F7FAFC;
+    color: var(--muted);
+    font-weight: 600;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    padding: 10px 14px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+
+  td {
+    padding: 10px 14px;
+    border-bottom: 1px solid #F7FAFC;
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+  }
+
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #F7FAFC; }
+
+  .typing-cursor::after {
+    content: '|';
+    animation: blink 0.7s infinite;
+  }
+
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+  .fade-in {
+    animation: fadeIn 0.5s ease forwards;
+    opacity: 0;
+  }
+
+  @keyframes fadeIn { to { opacity: 1; } }
+
+  /* error */
+  .error-box {
+    background: #FFF5F5;
+    border: 1px solid #FED7D7;
+    border-radius: 10px;
+    padding: 16px 20px;
+    color: var(--danger);
+    font-size: 14px;
+    margin: 16px 0;
+    display: none;
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="logo">
+    <div class="logo-icon">📊</div>
+    DataLens
+  </div>
+  <div class="nav-lang">
+    <button class="lang-btn active" onclick="setLang('ar')">العربية</button>
+    <button class="lang-btn" onclick="setLang('en')">English</button>
+  </div>
+</nav>
+
+<!-- UPLOAD -->
+<section id="uploadSection">
+  <div class="upload-hero">
+    <h1 id="heroTitle">حوّل بياناتك إلى قرارات</h1>
+    <p id="heroSub">ارفع ملفك واحصل على Dashboard ذكي في ثوانٍ</p>
+  </div>
+
+  <div class="upload-zone" id="dropZone">
+    <input type="file" id="fileInput" accept=".csv,.xlsx,.xls,.json,.pdf" onchange="handleFile(event)">
+    <span class="upload-icon">📂</span>
+    <h3 id="uploadTitle">اسحب الملف هنا أو اضغط للاختيار</h3>
+    <p id="uploadSub">Drag & drop your file or click to browse</p>
+  </div>
+
+  <div class="supported-formats">
+    <span class="format-badge">CSV</span>
+    <span class="format-badge">Excel</span>
+    <span class="format-badge">JSON</span>
+    <span class="format-badge">PDF</span>
+  </div>
+
+  <div class="error-box" id="errorBox"></div>
+</section>
+
+<!-- LOADING -->
+<section id="loadingSection">
+  <div class="spinner"></div>
+  <div class="loading-text" id="loadingText">جاري تحليل البيانات...</div>
+  <div class="loading-sub" id="loadingSub">الذكاء الاصطناعي يقرأ ويفهم ملفك</div>
+</section>
+
+<!-- DASHBOARD -->
+<section id="dashboardSection">
+  <div class="dash-header">
+    <div class="dash-title">
+      <h2 id="dashTitle">لوحة تحليل البيانات</h2>
+      <p id="dashSub">تم التوليد بواسطة الذكاء الاصطناعي</p>
+    </div>
+    <button class="btn-new" onclick="resetDashboard()">
+      <span>+</span>
+      <span id="newFileBtn">ملف جديد</span>
+    </button>
+  </div>
+
+  <!-- KPIs -->
+  <div class="kpi-grid" id="kpiGrid"></div>
+
+  <!-- AI INSIGHTS -->
+  <div class="insights-card fade-in" id="insightsCard">
+    <div class="insights-header">
+      <div class="ai-badge">AI</div>
+      <h3 id="insightsTitle">التحليل الذكي</h3>
+    </div>
+    <div class="insights-body" id="insightsBody"></div>
+  </div>
+
+  <!-- CHARTS -->
+  <div class="charts-grid" id="chartsGrid"></div>
+
+  <!-- TABLE -->
+  <div class="table-card">
+    <div class="card-title"><span>📋</span> <span id="tableTitle">عينة من البيانات</span></div>
+    <div id="tableContainer"></div>
+  </div>
+</section>
+
+<script>
+// ─── TRANSLATIONS ───
+const T = {
+  ar: {
+    heroTitle: 'حوّل بياناتك إلى قرارات',
+    heroSub: 'ارفع ملفك واحصل على Dashboard ذكي في ثوانٍ',
+    uploadTitle: 'اسحب الملف هنا أو اضغط للاختيار',
+    uploadSub: 'Drag & drop your file or click to browse',
+    loadingText: 'جاري تحليل البيانات...',
+    loadingSub: 'الذكاء الاصطناعي يقرأ ويفهم ملفك',
+    dashTitle: 'لوحة تحليل البيانات',
+    dashSub: 'تم التوليد بواسطة الذكاء الاصطناعي',
+    newFileBtn: 'ملف جديد',
+    insightsTitle: 'التحليل الذكي',
+    tableTitle: 'عينة من البيانات',
+  },
+  en: {
+    heroTitle: 'Turn Your Data into Decisions',
+    heroSub: 'Upload your file and get an AI-powered Dashboard in seconds',
+    uploadTitle: 'Drag & drop your file or click to browse',
+    uploadSub: 'اسحب الملف هنا أو اضغط للاختيار',
+    loadingText: 'Analyzing your data...',
+    loadingSub: 'AI is reading and understanding your file',
+    dashTitle: 'Data Analytics Dashboard',
+    dashSub: 'Generated by Artificial Intelligence',
+    newFileBtn: 'New File',
+    insightsTitle: 'AI Insights',
+    tableTitle: 'Data Sample',
+  }
+};
+
+let currentLang = 'ar';
+let parsedData = [];
+let parsedHeaders = [];
+let chartInstances = [];
+
+function setLang(lang) {
+  currentLang = lang;
+  document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+  document.documentElement.lang = lang;
+  document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
+  const t = T[lang];
+  Object.keys(t).forEach(k => {
+    const el = document.getElementById(k);
+    if (el) el.textContent = t[k];
+  });
+}
+
+// ─── DRAG & DROP ───
+const dropZone = document.getElementById('dropZone');
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file) processFile(file);
+});
+
+function handleFile(e) {
+  const file = e.target.files[0];
+  if (file) processFile(file);
+}
+
+function processFile(file) {
+  const ext = file.name.split('.').pop().toLowerCase();
+  showLoading();
+
+  if (ext === 'csv') {
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: result => {
+        parsedData = result.data;
+        parsedHeaders = result.meta.fields;
+        setTimeout(() => analyzeWithAI(file.name), 300);
+      },
+      error: () => showError(currentLang === 'ar' ? 'فشل قراءة ملف CSV' : 'Failed to parse CSV')
+    });
+  } else if (ext === 'json') {
+    const reader = new FileReader();
+    reader.onload = e => {
+      try {
+        let json = JSON.parse(e.target.result);
+        if (!Array.isArray(json)) json = [json];
+        parsedData = json;
+        parsedHeaders = Object.keys(json[0] || {});
+        setTimeout(() => analyzeWithAI(file.name), 300);
+      } catch { showError(currentLang === 'ar' ? 'ملف JSON غير صالح' : 'Invalid JSON file'); }
+    };
+    reader.readAsText(file);
+  } else {
+    // For Excel/PDF — send to AI as base64
+    const reader = new FileReader();
+    reader.onload = e => {
+      const base64 = e.target.result.split(',')[1];
+      analyzeWithAIBase64(base64, ext, file.name);
+    };
+    reader.readAsDataURL(file);
+  }
+}
+
+// ─── ANALYZE WITH AI (CSV/JSON) ───
+async function analyzeWithAI(filename) {
+  const sampleSize = Math.min(parsedData.length, 100);
+  const sample = parsedData.slice(0, sampleSize);
+
+  // Compute basic stats for numeric cols
+  const numericCols = parsedHeaders.filter(h => !isNaN(parseFloat(parsedData[0]?.[h])));
+  const stats = {};
+  numericCols.forEach(col => {
+    const vals = parsedData.map(r => parseFloat(r[col])).filter(v => !isNaN(v));
+    stats[col] = {
+      min: Math.min(...vals).toFixed(2),
+      max: Math.max(...vals).toFixed(2),
+      avg: (vals.reduce((a,b) => a+b, 0) / vals.length).toFixed(2),
+      sum: vals.reduce((a,b) => a+b, 0).toFixed(2),
+      count: vals.length
+    };
+  });
+
+  const prompt = `You are a senior data analyst and business consultant. Analyze this dataset and respond in valid JSON only (no markdown).
+
+Dataset: ${filename}
+Total rows: ${parsedData.length}
+Columns: ${parsedHeaders.join(', ')}
+Numeric stats: ${JSON.stringify(stats)}
+Sample (first 20 rows): ${JSON.stringify(sample.slice(0,20))}
+
+Respond ONLY with this JSON structure (no extra text, no backticks):
+{
+  "title": "short dataset description in Arabic",
+  "title_en": "short dataset description in English",
+  "kpis": [
+    {"label_ar": "...", "label_en": "...", "value": "...", "sub_ar": "...", "sub_en": "..."}
+  ],
+  "insights_ar": ["insight 1", "insight 2", "insight 3", "insight 4"],
+  "insights_en": ["insight 1", "insight 2", "insight 3", "insight 4"],
+  "recommendations_ar": ["rec 1", "rec 2", "rec 3"],
+  "recommendations_en": ["rec 1", "rec 2", "rec 3"],
+  "charts": [
+    {
+      "type": "bar|line|pie|doughnut",
+      "title_ar": "...",
+      "title_en": "...",
+      "labels": [...],
+      "data": [...],
+      "color": "navy|teal|gold|purple"
+    }
+  ]
+}
+
+Rules:
+- KPIs: exactly 4, use real numbers from the data
+- Charts: 3-4 charts that best represent the data
+- Insights: specific, data-driven, mention actual numbers
+- Labels and data arrays must have matching lengths (max 12 items)
+- For pie/doughnut use at most 8 slices`;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 1000,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+    const data = await res.json();
+    const text = data.content?.map(c => c.text || '').join('');
+    const clean = text.replace(/```json|```/g, '').trim();
+    const analysis = JSON.parse(clean);
+    renderDashboard(analysis);
+  } catch (err) {
+    console.error(err);
+    showError(currentLang === 'ar' ? 'حدث خطأ في التحليل. حاول مرة أخرى.' : 'Analysis error. Please try again.');
+  }
+}
+
+// ─── ANALYZE WITH AI (Excel/PDF base64) ───
+async function analyzeWithAIBase64(base64, ext, filename) {
+  const isImage = ['png','jpg','jpeg'].includes(ext);
+  const mediaType = ext === 'pdf' ? 'application/pdf' :
+                    ext === 'xlsx' || ext === 'xls' ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' : 'application/octet-stream';
+
+  const prompt = `You are a senior data analyst. Analyze the uploaded ${ext.toUpperCase()} file and respond in valid JSON only (no markdown, no extra text):
+
+{
+  "title": "short dataset description in Arabic",
+  "title_en": "short dataset description in English",
+  "kpis": [
+    {"label_ar": "...", "label_en": "...", "value": "...", "sub_ar": "...", "sub_en": "..."}
+  ],
+  "insights_ar": ["insight 1", "insight 2", "insight 3"],
+  "insights_en": ["insight 1", "insight 2", "insight 3"],
+  "recommendations_ar": ["rec 1", "rec 2"],
+  "recommendations_en": ["rec 1", "rec 2"],
+  "charts": [
+    {"type": "bar|line|pie", "title_ar": "...", "title_en": "...", "labels": [...], "data": [...], "color": "navy|teal|gold"}
+  ]
+}`;
+
+  try {
+    const content = ext === 'pdf' ? [
+      { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64 } },
+      { type: 'text', text: prompt }
+    ] : [{ type: 'text', text: `File is ${ext} format (binary). Please acknowledge you cannot read it directly and provide a sample analysis structure instead.\n\n${prompt}` }];
+
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 1000,
+        messages: [{ role: 'user', content }]
+      })
+    });
+    const data = await res.json();
+    const text = data.content?.map(c => c.text || '').join('');
+    const clean = text.replace(/```json|```/g, '').trim();
+    const analysis = JSON.parse(clean);
+    renderDashboard(analysis);
+  } catch (err) {
+    showError(currentLang === 'ar' ? 'تعذّر تحليل الملف. جرب CSV أو JSON.' : 'Could not analyze file. Try CSV or JSON.');
+  }
+}
+
+// ─── RENDER DASHBOARD ───
+const COLORS = {
+  navy: { bg: 'rgba(15,76,117,0.85)', border: '#0F4C75' },
+  teal: { bg: 'rgba(0,201,167,0.85)', border: '#00C9A7' },
+  gold: { bg: 'rgba(247,183,49,0.85)', border: '#F7B731' },
+  purple: { bg: 'rgba(155,89,182,0.85)', border: '#9B59B6' },
+};
+
+function renderDashboard(analysis) {
+  // destroy old charts
+  chartInstances.forEach(c => c.destroy());
+  chartInstances = [];
+
+  const lang = currentLang;
+
+  // KPIs
+  const kpiGrid = document.getElementById('kpiGrid');
+  kpiGrid.innerHTML = (analysis.kpis || []).map(k => `
+    <div class="kpi-card fade-in">
+      <div class="kpi-label">${lang === 'ar' ? k.label_ar : k.label_en}</div>
+      <div class="kpi-value">${k.value}</div>
+      <div class="kpi-sub">${lang === 'ar' ? k.sub_ar : k.sub_en}</div>
+    </div>
+  `).join('');
+
+  // Insights
+  const insightsAr = analysis.insights_ar || [];
+  const insightsEn = analysis.insights_en || [];
+  const recsAr = analysis.recommendations_ar || [];
+  const recsEn = analysis.recommendations_en || [];
+  const insights = lang === 'ar' ? insightsAr : insightsEn;
+  const recs = lang === 'ar' ? recsAr : recsEn;
+
+  const insightsBody = document.getElementById('insightsBody');
+  insightsBody.innerHTML = `
+    <div id="insightsTyped"></div>
+    <div class="recommendations" style="margin-top:16px">
+      <div class="rec-title">${lang === 'ar' ? 'التوصيات' : 'Recommendations'}</div>
+      ${recs.map((r, i) => `
+        <div class="rec-item">
+          <div class="rec-num">${i+1}</div>
+          <div>${r}</div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+
+  // Type-write insights
+  typeInsights(insights);
+
+  // Charts
+  const chartsGrid = document.getElementById('chartsGrid');
+  chartsGrid.innerHTML = (analysis.charts || []).map((chart, i) => `
+    <div class="chart-card fade-in" style="animation-delay:${i*0.1}s">
+      <div class="card-title"><span>📈</span> ${lang === 'ar' ? chart.title_ar : chart.title_en}</div>
+      <div class="chart-container"><canvas id="chart${i}"></canvas></div>
+    </div>
+  `).join('');
+
+  (analysis.charts || []).forEach((chart, i) => {
+    const col = COLORS[chart.color] || COLORS.navy;
+    const ctx = document.getElementById(`chart${i}`);
+    if (!ctx) return;
+
+    const isPie = ['pie','doughnut'].includes(chart.type);
+    const bgColors = isPie
+      ? [COLORS.navy.bg, COLORS.teal.bg, COLORS.gold.bg, COLORS.purple.bg,
+         'rgba(231,76,60,0.8)', 'rgba(26,188,156,0.8)', 'rgba(52,152,219,0.8)', 'rgba(241,196,15,0.8)']
+      : col.bg;
+
+    const instance = new Chart(ctx, {
+      type: chart.type || 'bar',
+      data: {
+        labels: chart.labels || [],
+        datasets: [{
+          label: lang === 'ar' ? chart.title_ar : chart.title_en,
+          data: chart.data || [],
+          backgroundColor: bgColors,
+          borderColor: isPie ? '#fff' : col.border,
+          borderWidth: isPie ? 2 : 2,
+          borderRadius: chart.type === 'bar' ? 6 : 0,
+          tension: 0.4,
+          fill: chart.type === 'line' ? { target: 'origin', above: 'rgba(15,76,117,0.08)' } : false,
+          pointBackgroundColor: col.border,
+          pointRadius: 4,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: isPie, position: 'bottom', labels: { font: { family: 'Inter', size: 11 } } }
+        },
+        scales: isPie ? {} : {
+          x: { grid: { display: false }, ticks: { font: { family: 'Inter', size: 11 }, maxRotation: 45 } },
+          y: { grid: { color: '#F0F4F8' }, ticks: { font: { family: 'Inter', size: 11 } } }
+        }
+      }
+    });
+    chartInstances.push(instance);
+  });
+
+  // Table
+  if (parsedData.length > 0) {
+    renderTable();
+  } else {
+    document.querySelector('.table-card').style.display = 'none';
+  }
+
+  document.getElementById('loadingSection').style.display = 'none';
+  document.getElementById('dashboardSection').style.display = 'block';
+}
+
+function typeInsights(insights) {
+  const el = document.getElementById('insightsTyped');
+  el.innerHTML = '';
+  let i = 0;
+  function addNext() {
+    if (i >= insights.length) return;
+    const div = document.createElement('div');
+    div.className = 'insight-item';
+    div.innerHTML = `<div class="insight-dot"></div><div>${insights[i]}</div>`;
+    el.appendChild(div);
+    div.style.opacity = 0;
+    setTimeout(() => { div.style.transition = 'opacity 0.4s'; div.style.opacity = 1; }, 50);
+    i++;
+    setTimeout(addNext, 350);
+  }
+  addNext();
+}
+
+function renderTable() {
+  const headers = parsedHeaders;
+  const rows = parsedData.slice(0, 10);
+  const container = document.getElementById('tableContainer');
+  container.innerHTML = `
+    <table>
+      <thead><tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr></thead>
+      <tbody>${rows.map(row => `<tr>${headers.map(h => `<td>${row[h] ?? ''}</td>`).join('')}</tr>`).join('')}</tbody>
+    </table>
+  `;
+}
+
+// ─── HELPERS ───
+function showLoading() {
+  document.getElementById('uploadSection').style.display = 'none';
+  document.getElementById('loadingSection').style.display = 'block';
+  document.getElementById('errorBox').style.display = 'none';
+}
+
+function showError(msg) {
+  document.getElementById('loadingSection').style.display = 'none';
+  document.getElementById('uploadSection').style.display = 'block';
+  const eb = document.getElementById('errorBox');
+  eb.textContent = msg;
+  eb.style.display = 'block';
+}
+
+function resetDashboard() {
+  chartInstances.forEach(c => c.destroy());
+  chartInstances = [];
+  parsedData = [];
+  parsedHeaders = [];
+  document.getElementById('dashboardSection').style.display = 'none';
+  document.getElementById('uploadSection').style.display = 'block';
+  document.getElementById('fileInput').value = '';
+}
+</script>
+</body>
+</html>
